@@ -1,28 +1,40 @@
 
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { HNSWLib } from "@langchain/community/vectorstores/hnswlib";
+import { formatDocumentsAsString } from "langchain/util/document";
+import { PromptTemplate } from "@langchain/core/prompts";
+import {
+  RunnableSequence,
+  RunnablePassthrough,
+} from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
-export class LLM{
-    constructor(apiKey: string){}
-
-    async getResponse(prompt: string, datas: string): Promise<string>  {
-        //여기에 이제 langchain기반의 llm 연계 진행
-        const jsonData = JSON.stringify(datas,null,2);
-        const p = ChatPromptTemplate.fromMessages([
-            ["system","You are very powerful " + process.env.ROLE_OF_GPT+". Must tell me shortly"],
-            ["human","{command}" + "data : {datas}"],
-        ]);
+export class LLM {
+    constructor(){}
+    async chat(question:string, datas:string){
         const model = new ChatOpenAI({openAIApiKey: process.env.OPENAI_API_KEY,});
-        const outputParser = new StringOutputParser();
 
-        const chain = p.pipe(model).pipe(outputParser);
+        const vectorStore = await HNSWLib.fromTexts(
+            [JSON.stringify(JSON.stringify(datas,null,2),null,2)],
+            [{ id: 1 }],
+            new OpenAIEmbeddings()
+        );
 
-        const response = await chain.invoke({
-            command: prompt,
-            datas: jsonData
-        });
+        const retriever = vectorStore.asRetriever();
+        const prompt = PromptTemplate.fromTemplate(`Answer the question based only on the following context:{context} Question: {question}`);
 
-        return response;
+        const chain = RunnableSequence.from([
+            {
+                context: retriever.pipe(formatDocumentsAsString),
+                question: new RunnablePassthrough(),
+            },
+            prompt,
+            model,
+            new StringOutputParser(),
+        ]);
+        
+        const result = await chain.invoke(question);
+        console.log(result);
+        return result;
     }
 }
