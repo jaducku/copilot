@@ -8,8 +8,10 @@ export class LLM{
 
     async getResponse(prompt: string, datas: string): Promise<string>  {
         //여기에 이제 langchain기반의 llm 연계 진행
+        const jsonData = JSON.stringify(datas,null,2);
         const p = ChatPromptTemplate.fromMessages([
-            ["human","You are a good analysist. {command}"],
+            ["system","You are very powerful " + process.env.ROLE_OF_GPT+". Must tell me shortly"],
+            ["human","{command}" + "data : {datas}"],
         ]);
         const model = new ChatOpenAI({openAIApiKey: process.env.OPENAI_API_KEY,});
         const outputParser = new StringOutputParser();
@@ -18,6 +20,7 @@ export class LLM{
 
         const response = await chain.invoke({
             command: prompt,
+            datas: jsonData
         });
 
         return response;

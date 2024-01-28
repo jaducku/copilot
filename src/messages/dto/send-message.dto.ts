@@ -1,12 +1,8 @@
-import { IsString } from "class-validator";
+import { IsJSON, IsString } from "class-validator";
 
 export class SendMessageDto {
     @IsString()
     prompt: string;
-    @IsString()
+    @IsJSON()
     datas: string;
 }
-
-
-git config --global user.name "jaducku"
-git config --global user.email "jaducku@gmail.com"
